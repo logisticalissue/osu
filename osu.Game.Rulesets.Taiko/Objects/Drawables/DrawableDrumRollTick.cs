@@ -5,11 +5,13 @@
 
 using System;
 using JetBrains.Annotations;
+using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Input.Events;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
+using osu.Game.Rulesets.Taiko.Configuration;
 using osu.Game.Rulesets.Taiko.Skinning.Default;
 using osu.Game.Skinning;
 using osuTK;
@@ -19,6 +21,10 @@ namespace osu.Game.Rulesets.Taiko.Objects.Drawables
     public partial class DrawableDrumRollTick : DrawableTaikoStrongableHitObject<DrumRollTick, DrumRollTick.StrongNestedHit>
     {
         public BindableBool IsFirstTick = new BindableBool();
+
+        [Resolved(CanBeNull = true)]
+        private TaikoRulesetConfigManager taikoConfig { get; set; }
+        private readonly Bindable<bool> hitAnimations = new Bindable<bool>(true);
 
         /// <summary>
         /// The hit type corresponding to the <see cref="TaikoAction"/> that the user pressed to hit this <see cref="DrawableDrumRollTick"/>.
@@ -34,6 +40,12 @@ namespace osu.Game.Rulesets.Taiko.Objects.Drawables
             : base(tick)
         {
             FillMode = FillMode.Fit;
+        }
+
+        [BackgroundDependencyLoader]
+        private void load()
+        {
+            taikoConfig?.BindWith(TaikoRulesetSetting.HitAnimations, hitAnimations);
         }
 
         protected override SkinnableDrawable CreateMainPiece() => new SkinnableDrawable(new TaikoSkinComponentLookup(TaikoSkinComponents.DrumRollTick), _ => new TickPiece());
@@ -79,6 +91,13 @@ namespace osu.Game.Rulesets.Taiko.Objects.Drawables
             switch (state)
             {
                 case ArmedState.Hit:
+                    if (!hitAnimations.Value) {
+                        this.FadeOut();
+                        // despite being invisible, this object must stay alive long enough for its nested strong hit (if any) to be judged,
+                        // otherwise gameplay will never complete (see also: `TaikoModHidden.ApplyNormalVisibilityState()`).
+                        LifetimeEnd = HitStateUpdateTime + DrawableHit.StrongNestedHit.SECOND_HIT_WINDOW;
+                        return;
+                    }
                     this.ScaleTo(1.4f, 200, Easing.OutQuint);
                     this.FadeOut(200, Easing.OutQuint);
                     break;
