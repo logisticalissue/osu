@@ -229,7 +229,7 @@ namespace osu.Game.Rulesets.Taiko.Tests.Judgements
             {
                 new TaikoReplayFrame(0),
                 new TaikoReplayFrame(hit_time + hitWindows.WindowFor(HitResult.Ok) - 1, TaikoAction.LeftCentre),
-                new TaikoReplayFrame(hit_time + hitWindows.WindowFor(HitResult.Ok) + DrawableHit.StrongNestedHit.SECOND_HIT_WINDOW - 2, TaikoAction.LeftCentre, TaikoAction.RightCentre),
+                new TaikoReplayFrame(hit_time + hitWindows.WindowFor(HitResult.Ok) + Hit.StrongNestedHit.SECOND_HIT_WINDOW - 2, TaikoAction.LeftCentre, TaikoAction.RightCentre),
             }, beatmap, new Mod[] { new TaikoModHidden() });
 
             AssertJudgementCount(2);

@@ -81,6 +81,22 @@ namespace osu.Game.Rulesets.Objects
         private double realLifetimeStart = double.MinValue;
         private double realLifetimeEnd = double.MaxValue;
 
+        private double judgementClampedLifetimeEnd =>
+            AllJudged ? realLifetimeEnd : Math.Max(realLifetimeEnd, lastJudgementEnd);
+
+        private double lastJudgementEnd
+        {
+            get
+            {
+                double end = HitObject.GetEndTime() + HitObject.MaximumJudgementOffset;
+
+                foreach (var nested in NestedEntries)
+                    end = Math.Max(end, nested.lastJudgementEnd);
+
+                return end;
+            }
+        }
+
         // This method is called even if `start == LifetimeStart` when `KeepAlive` is true (necessary to update `realLifetimeStart`).
         protected override void SetLifetimeStart(double start)
         {
@@ -93,7 +109,7 @@ namespace osu.Game.Rulesets.Objects
         {
             realLifetimeEnd = end;
             if (!keepAlive)
-                base.SetLifetimeEnd(end);
+                base.SetLifetimeEnd(judgementClampedLifetimeEnd);
         }
 
         private bool keepAlive;
@@ -112,7 +128,7 @@ namespace osu.Game.Rulesets.Objects
                 if (keepAlive)
                     SetLifetime(double.MinValue, double.MaxValue);
                 else
-                    SetLifetime(realLifetimeStart, realLifetimeEnd);
+                    SetLifetime(realLifetimeStart, judgementClampedLifetimeEnd);
             }
         }
 

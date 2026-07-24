@@ -4,9 +4,7 @@
 using osu.Framework.Graphics;
 using osu.Framework.Localisation;
 using osu.Game.Rulesets.Mods;
-using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
-using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.Taiko.Objects;
 using osu.Game.Rulesets.Taiko.Objects.Drawables;
 using osu.Game.Rulesets.Taiko.UI;
@@ -53,17 +51,8 @@ namespace osu.Game.Rulesets.Taiko.Mods
                     double duration = preempt * fade_out_duration;
 
                     using (hitObject.BeginAbsoluteSequence(start))
-                    {
                         hitObject.FadeOut(duration);
 
-                        // DrawableHitObject sets LifetimeEnd to LatestTransformEndTime if it isn't manually changed.
-                        // in order for the object to not be killed before its actual end time (as the latest transform ends earlier), set lifetime end explicitly.
-                        hitObject.LifetimeEnd = state == ArmedState.Idle || !hitObject.AllJudged
-                            ? hitObject.HitObject.GetEndTime() + hitObject.HitObject.HitWindows.WindowFor(HitResult.Miss)
-                            : hitObject.HitStateUpdateTime;
-                        // extend the lifetime end of the object in order to allow its nested strong hit (if any) to be judged.
-                        hitObject.LifetimeEnd += DrawableHit.StrongNestedHit.SECOND_HIT_WINDOW;
-                    }
 
                     break;
             }

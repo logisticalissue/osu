@@ -7,6 +7,7 @@ using osu.Framework.Extensions.Color4Extensions;
 using osu.Game.Audio;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Types;
+using osu.Game.Rulesets.Scoring;
 using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Taiko.Objects
@@ -78,10 +79,17 @@ namespace osu.Game.Rulesets.Taiko.Objects
 
         public class StrongNestedHit : StrongNestedHitObject
         {
+            /// <summary>
+            /// The lenience for the second key press.
+            /// This does not adjust by map difficulty in ScoreV2 yet.
+            /// </summary>
+            public const double SECOND_HIT_WINDOW = 30;
+
             public StrongNestedHit(TaikoHitObject parent)
                 : base(parent)
             {
             }
+            public override double MaximumJudgementOffset => (Parent.HitWindows?.WindowFor(HitResult.Miss) ?? 0) + SECOND_HIT_WINDOW;
         }
     }
 }

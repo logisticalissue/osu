@@ -110,7 +110,7 @@ namespace osu.Game.Rulesets.Taiko.UI
             if (lastAction == null)
                 return false;
 
-            if (timeBetweenActions < 0 || timeBetweenActions > DrawableHit.StrongNestedHit.SECOND_HIT_WINDOW)
+            if (timeBetweenActions < 0 || timeBetweenActions > Hit.StrongNestedHit.SECOND_HIT_WINDOW)
                 return false;
 
             switch (newAction)

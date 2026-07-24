@@ -176,10 +176,6 @@ namespace osu.Game.Rulesets.Taiko.Objects.Drawables
                     if (!hitAnimations.Value)
                     {
                         this.FadeOut();
-
-                        // despite being invisible, this object must stay alive long enough for its nested strong hit (if any) to be judged,
-                        // otherwise gameplay will never complete (see also: `TaikoModHidden.ApplyNormalVisibilityState()`).
-                        LifetimeEnd = HitStateUpdateTime + StrongNestedHit.SECOND_HIT_WINDOW;
                         break;
                     }
 
@@ -213,12 +209,6 @@ namespace osu.Game.Rulesets.Taiko.Objects.Drawables
         {
             public new DrawableHit ParentHitObject => (DrawableHit)base.ParentHitObject;
 
-            /// <summary>
-            /// The lenience for the second key press.
-            /// This does not adjust by map difficulty in ScoreV2 yet.
-            /// </summary>
-            public const double SECOND_HIT_WINDOW = 30;
-
             public StrongNestedHit()
                 : this(null)
             {
@@ -245,12 +235,12 @@ namespace osu.Game.Rulesets.Taiko.Objects.Drawables
 
                 if (!userTriggered)
                 {
-                    if (timeOffset - ParentHitObject.Result.TimeOffset > SECOND_HIT_WINDOW)
+                    if (timeOffset - ParentHitObject.Result.TimeOffset > Hit.StrongNestedHit.SECOND_HIT_WINDOW)
                         ApplyMinResult();
                     return;
                 }
 
-                if (Math.Abs(timeOffset - ParentHitObject.Result.TimeOffset) <= SECOND_HIT_WINDOW)
+                if (Math.Abs(timeOffset - ParentHitObject.Result.TimeOffset) <= Hit.StrongNestedHit.SECOND_HIT_WINDOW)
                     ApplyMaxResult();
             }
 
