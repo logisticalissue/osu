@@ -15,11 +15,15 @@ namespace osu.Game.Storyboards.Commands
 
         public override string PropertyName => nameof(Drawable.Blending);
 
+        public override BlendingParameters ValueAt(double time) => time < EndTime ? StartValue : EndValue;
+
         public override void ApplyInitialValue<TDrawable>(TDrawable d)
         {
             if (StartTime == EndTime)
                 d.Blending = StartValue;
         }
+
+        public override void ApplyAt<TDrawable>(TDrawable d, double time) => d.Blending = ValueAt(time);
 
         public override TransformSequence<TDrawable> ApplyTransforms<TDrawable>(TDrawable d)
             => d.TransformTo(nameof(d.Blending), StartValue).Delay(Duration)

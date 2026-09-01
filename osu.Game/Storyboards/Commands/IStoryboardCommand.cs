@@ -39,6 +39,13 @@ namespace osu.Game.Storyboards.Commands
         void ApplyInitialValue<TDrawable>(TDrawable d)
             where TDrawable : Drawable, IFlippable, IVectorScalable;
 
+        void ApplyAt<TDrawable>(TDrawable d, double time)
+            where TDrawable : Drawable, IFlippable, IVectorScalable;
+
+        bool IsActiveAt(double time);
+
+        double MostRecentEndTimeAt(double time);
+
         /// <summary>
         /// Applies the transforms described by this storyboard command to the target drawable.
         /// </summary>

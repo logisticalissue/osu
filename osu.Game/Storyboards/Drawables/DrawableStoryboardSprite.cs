@@ -74,6 +74,16 @@ namespace osu.Game.Storyboards.Drawables
         public override bool IsPresent
             => !float.IsNaN(DrawPosition.X) && !float.IsNaN(DrawPosition.Y) && base.IsPresent;
 
+        private bool evaluatePerFrame;
+
+        public override bool UpdateSubTree()
+        {
+            if (evaluatePerFrame && LoadState == LoadState.Loaded)
+                Sprite.ApplyAt(this, Time.Current);
+
+            return base.UpdateSubTree();
+        }
+
         protected override void Update()
         {
             base.Update();
@@ -109,6 +119,8 @@ namespace osu.Game.Storyboards.Drawables
         [BackgroundDependencyLoader]
         private void load(Storyboard storyboard, StoryboardTriggerController triggerController)
         {
+            evaluatePerFrame = Sprite.TriggerGroups.Count == 0;
+
             if (storyboard.UseSkinSprites)
             {
                 skin.SourceChanged += skinSourceChanged;
@@ -117,7 +129,10 @@ namespace osu.Game.Storyboards.Drawables
             else
                 Texture = textureStore.Get(Sprite.Path, WrapMode.ClampToEdge, WrapMode.ClampToEdge);
 
-            Sprite.ApplyTransforms(this, triggerController);
+            if (evaluatePerFrame)
+                Sprite.ApplyInitialValues(this);
+            else
+                Sprite.ApplyTransforms(this, triggerController);
         }
 
         private void skinSourceChanged()
