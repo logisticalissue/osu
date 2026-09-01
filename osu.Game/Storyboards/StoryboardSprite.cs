@@ -111,26 +111,30 @@ namespace osu.Game.Storyboards
 
         public bool HasCommands => Commands.HasCommands || LoopingGroups.Any(l => l.HasCommands);
 
+        private int nextDeclarationIndex;
+
         public StoryboardSprite(StoryboardElementSource source, string path, Anchor origin, Vector2 initialPosition)
         {
             Source = source;
             Path = path;
             Origin = origin;
             InitialPosition = initialPosition;
+
+            Commands.DeclarationIndexSource = () => nextDeclarationIndex++;
         }
 
         public virtual Drawable CreateDrawable() => new DrawableStoryboardSprite(this);
 
         public StoryboardLoopingGroup AddLoopingGroup(double loopStartTime, int repeatCount)
         {
-            var loop = new StoryboardLoopingGroup(loopStartTime, repeatCount);
+            var loop = new StoryboardLoopingGroup(loopStartTime, repeatCount) { DeclarationIndexSource = () => nextDeclarationIndex++ };
             LoopingGroups.Add(loop);
             return loop;
         }
 
         public StoryboardTriggerGroup AddTriggerGroup(string triggerName, double startTime, double endTime, int groupNumber)
         {
-            var trigger = new StoryboardTriggerGroup(triggerName, startTime, endTime, groupNumber);
+            var trigger = new StoryboardTriggerGroup(triggerName, startTime, endTime, groupNumber) { DeclarationIndexSource = () => nextDeclarationIndex++ };
             TriggerGroups.Add(trigger);
             return trigger;
         }

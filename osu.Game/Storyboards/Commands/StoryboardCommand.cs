@@ -10,6 +10,8 @@ namespace osu.Game.Storyboards.Commands
 {
     public abstract class StoryboardCommand<T> : IStoryboardCommand, IComparable<StoryboardCommand<T>>
     {
+        public int DeclarationIndex { get; internal set; }
+
         public double StartTime { get; }
         public double EndTime { get; }
 

@@ -9,6 +9,8 @@ namespace osu.Game.Storyboards.Commands
 {
     public interface IStoryboardCommand
     {
+        int DeclarationIndex { get; }
+
         /// <summary>
         /// The start time of the storyboard command.
         /// </summary>

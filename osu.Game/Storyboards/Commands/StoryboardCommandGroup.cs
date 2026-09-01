@@ -1,6 +1,7 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
@@ -71,6 +72,8 @@ namespace osu.Game.Storyboards.Commands
         [JsonIgnore]
         public bool HasCommands { get; private set; }
 
+        internal Func<int>? DeclarationIndexSource;
+
         private readonly IReadOnlyList<IStoryboardCommand>[] lists;
 
         public IEnumerable<IStoryboardCommand> AllCommands => lists.SelectMany(g => g);
@@ -117,6 +120,8 @@ namespace osu.Game.Storyboards.Commands
         /// <typeparam name="T">The value type of the target property affected by this storyboard command.</typeparam>
         protected virtual void AddCommand<T>(ICollection<StoryboardCommand<T>> list, StoryboardCommand<T> command)
         {
+            command.DeclarationIndex = DeclarationIndexSource?.Invoke() ?? 0;
+
             list.Add(command);
             HasCommands = true;
 
