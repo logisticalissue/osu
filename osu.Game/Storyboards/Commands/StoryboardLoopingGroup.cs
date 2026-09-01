@@ -53,6 +53,56 @@ namespace osu.Game.Storyboards.Commands
 
             public override string PropertyName => command.PropertyName;
 
+            private (double start, double end)? iterationAt(double time)
+            {
+                double period = loopingGroup.Duration;
+
+                if (period <= 0)
+                    return time >= StartTime && time <= EndTime ? (StartTime, EndTime) : null;
+
+                if (time < StartTime)
+                    return null;
+
+                double iteration = Math.Floor((time - StartTime) / period);
+
+                if (iteration >= loopingGroup.TotalIterations)
+                    return null;
+
+                double start = StartTime + iteration * period;
+                double end = EndTime + iteration * period;
+
+                return time <= end ? (start, end) : null;
+            }
+
+            public override bool IsActiveAt(double time) => iterationAt(time) != null;
+
+            public override double MostRecentEndTimeAt(double time)
+            {
+                double period = loopingGroup.Duration;
+
+                if (period <= 0 || time < EndTime)
+                    return EndTime <= time ? EndTime : double.NegativeInfinity;
+
+                double elapsed = Math.Min(Math.Floor((time - EndTime) / period), loopingGroup.TotalIterations - 1);
+
+                return EndTime + elapsed * period;
+            }
+
+            // the body is the same length every iteration, so mapping back onto it is a plain offset
+            private double toBodyTime(double time)
+            {
+                var iteration = iterationAt(time);
+
+                if (iteration == null)
+                    return time <= StartTime ? command.StartTime : command.EndTime;
+
+                return command.StartTime + (time - iteration.Value.start);
+            }
+
+            public override T ValueAt(double time) => command.ValueAt(toBodyTime(time));
+
+            public override void ApplyAt<TDrawable>(TDrawable d, double time) => command.ApplyAt(d, toBodyTime(time));
+
             public override void ApplyInitialValue<TDrawable>(TDrawable d) => command.ApplyInitialValue(d);
 
             public override TransformSequence<TDrawable> ApplyTransforms<TDrawable>(TDrawable d)

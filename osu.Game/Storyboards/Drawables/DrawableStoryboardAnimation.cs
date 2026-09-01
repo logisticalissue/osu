@@ -89,6 +89,16 @@ namespace osu.Game.Storyboards.Drawables
             LifetimeEnd = animation.EndTimeForDisplay;
         }
 
+        private bool evaluatePerFrame;
+
+        public override bool UpdateSubTree()
+        {
+            if (evaluatePerFrame && LoadState == LoadState.Loaded)
+                Animation.ApplyAt(this, Time.Current);
+
+            return base.UpdateSubTree();
+        }
+
         protected override void Update()
         {
             base.Update();
@@ -124,7 +134,12 @@ namespace osu.Game.Storyboards.Drawables
             else
                 addFramesFromStoryboardSource();
 
-            Animation.ApplyTransforms(this, triggerController);
+            evaluatePerFrame = Animation.TriggerGroups.Count == 0;
+
+            if (evaluatePerFrame)
+                Animation.ApplyInitialValues(this);
+            else
+                Animation.ApplyTransforms(this, triggerController);
         }
 
         protected override void LoadComplete()

@@ -17,6 +17,8 @@ namespace osu.Game.Storyboards.Commands
 
         public override void ApplyInitialValue<TDrawable>(TDrawable d) => d.X = StartValue;
 
+        public override void ApplyAt<TDrawable>(TDrawable d, double time) => d.X = ValueAt(time);
+
         public override TransformSequence<TDrawable> ApplyTransforms<TDrawable>(TDrawable d)
             => d.MoveToX(StartValue).Then().MoveToX(EndValue, Duration, Easing);
     }

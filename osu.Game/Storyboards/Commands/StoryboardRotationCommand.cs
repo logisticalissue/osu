@@ -17,6 +17,8 @@ namespace osu.Game.Storyboards.Commands
 
         public override void ApplyInitialValue<TDrawable>(TDrawable d) => d.Rotation = StartValue;
 
+        public override void ApplyAt<TDrawable>(TDrawable d, double time) => d.Rotation = ValueAt(time);
+
         public override TransformSequence<TDrawable> ApplyTransforms<TDrawable>(TDrawable d)
             => d.RotateTo(StartValue).Then().RotateTo(EndValue, Duration, Easing);
     }

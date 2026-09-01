@@ -19,6 +19,8 @@ namespace osu.Game.Storyboards.Commands
 
         public override void ApplyInitialValue<TDrawable>(TDrawable d) => d.VectorScale = StartValue;
 
+        public override void ApplyAt<TDrawable>(TDrawable d, double time) => d.VectorScale = ValueAt(time);
+
         public override TransformSequence<TDrawable> ApplyTransforms<TDrawable>(TDrawable d)
             => d.TransformTo(nameof(d.VectorScale), StartValue).Then()
                 .TransformTo(nameof(d.VectorScale), EndValue, Duration, Easing);

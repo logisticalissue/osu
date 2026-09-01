@@ -139,6 +139,82 @@ namespace osu.Game.Storyboards
             return trigger;
         }
 
+        private IStoryboardCommand[][]? commandsByProperty;
+
+        public void ApplyInitialValues<TDrawable>(TDrawable drawable)
+            where TDrawable : Drawable, IFlippable, IVectorScalable
+        {
+            commandsByProperty ??= groupCommandsByProperty();
+
+            foreach (var commands in commandsByProperty)
+                commands[0].ApplyInitialValue(drawable);
+        }
+
+        public void ApplyAt<TDrawable>(TDrawable drawable, double time)
+            where TDrawable : Drawable, IFlippable, IVectorScalable
+        {
+            commandsByProperty ??= groupCommandsByProperty();
+
+            foreach (var commands in commandsByProperty)
+            {
+                IStoryboardCommand? governing = null;
+
+                foreach (var command in commands)
+                {
+                    if (!command.IsActiveAt(time))
+                        continue;
+
+                    governing = command;
+                    break;
+                }
+
+                if (governing != null)
+                {
+                    governing.ApplyAt(drawable, time);
+                    continue;
+                }
+
+                // nothing running: hold what the most recently finished
+                // command left behind. if several finished at the same time,
+                // last started decides. commands also started together are
+                // decided by declaration order
+                double mostRecentEnd = double.NegativeInfinity;
+                double governingStart = double.NegativeInfinity;
+
+                foreach (var command in commands)
+                {
+                    double end = command.MostRecentEndTimeAt(time);
+
+                    if (double.IsNegativeInfinity(end) || end < mostRecentEnd)
+                        continue;
+
+                    if (end == mostRecentEnd && command.StartTime <= governingStart)
+                        continue;
+
+                    mostRecentEnd = end;
+                    governingStart = command.StartTime;
+                    governing = command;
+                }
+
+                if (governing == null)
+                {
+                    // nothing has run yet either, so the property is in the state it started in - which is
+                    // the value the first declared command begins from, not the last
+                    commands[0].ApplyInitialValue(drawable);
+                    continue;
+                }
+
+                governing.ApplyAt(drawable, time);
+            }
+        }
+
+        private IStoryboardCommand[][] groupCommandsByProperty()
+            => Commands.AllCommands
+                       .Concat(LoopingGroups.SelectMany(l => l.AllCommands))
+                       .GroupBy(c => c.PropertyName)
+                       .Select(g => g.OrderBy(c => c.DeclarationIndex).ToArray())
+                       .ToArray();
+
         public void ApplyTransforms<TDrawable>(TDrawable drawable, StoryboardTriggerController triggerController)
             where TDrawable : Drawable, IFlippable, IVectorScalable
         {

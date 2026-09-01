@@ -3,6 +3,7 @@
 
 using System;
 using osu.Framework.Graphics;
+using osu.Framework.Utils;
 using osu.Framework.Graphics.Transforms;
 using osu.Game.Storyboards.Drawables;
 
@@ -35,7 +36,17 @@ namespace osu.Game.Storyboards.Commands
 
         public abstract string PropertyName { get; }
 
+        public virtual bool IsActiveAt(double time) => time >= StartTime && time <= EndTime;
+
+        public virtual double MostRecentEndTimeAt(double time) => EndTime <= time ? EndTime : double.NegativeInfinity;
+
+        public virtual T ValueAt(double time)
+            => EndTime <= StartTime ? EndValue : Interpolation.ValueAt(Math.Clamp(time, StartTime, EndTime), StartValue, EndValue, StartTime, EndTime, Easing);
+
         public abstract void ApplyInitialValue<TDrawable>(TDrawable d)
+            where TDrawable : Drawable, IFlippable, IVectorScalable;
+
+        public abstract void ApplyAt<TDrawable>(TDrawable d, double time)
             where TDrawable : Drawable, IFlippable, IVectorScalable;
 
         public abstract TransformSequence<TDrawable> ApplyTransforms<TDrawable>(TDrawable d)
