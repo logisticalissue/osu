@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -96,6 +97,54 @@ namespace osu.Game.Tests.Visual.Navigation
             AddAssert("all difficulties are locally modified", () => getEditor().Beatmap.Value.BeatmapSetInfo.Beatmaps.All(b => b.Status == BeatmapOnlineStatus.LocallyModified));
             AddAssert("difficulty didn't change", () => getEditor().Beatmap.Value.BeatmapInfo.DifficultyName, () => Is.EqualTo(difficultyName));
             AddAssert("old beatmapset deleted", () => Game.BeatmapManager.QueryBeatmapSet(s => s.ID == beatmapSet.ID), () => Is.Null);
+        }
+
+        [Test]
+        public void TestExternalEditingWithFailedImport()
+        {
+            Dictionary<string, byte[]> removedFiles = new Dictionary<string, byte[]>();
+            string mountedPath = null!;
+
+            prepareBeatmap();
+            openEditor();
+
+            AddStep("open file menu", () => getEditor().ChildrenOfType<Menu.DrawableMenuItem>().Single(m => m.Item.Text.Value == CommonStrings.MenuBarFile).TriggerClick());
+            AddStep("click external edit", () => getEditor().ChildrenOfType<Menu.DrawableMenuItem>().Single(m => m.Item.Text.Value == EditorStrings.EditExternally).TriggerClick());
+
+            AddUntilStep("wait for external edit screen", () => Game.ScreenStack.CurrentScreen is ExternalEditScreen externalEditScreen && externalEditScreen.IsLoaded);
+
+            AddUntilStep("wait for button ready", () => ((ExternalEditScreen)Game.ScreenStack.CurrentScreen).ChildrenOfType<DangerousRoundedButton>().FirstOrDefault()?.Enabled.Value == true);
+
+            AddStep("break beatmap externally", () =>
+            {
+                mountedPath = ((ExternalEditScreen)Game.ScreenStack.CurrentScreen).EditOperation!.MountedPath;
+
+                foreach (string file in Directory.GetFiles(mountedPath, "*.osu"))
+                {
+                    removedFiles.Add(file, File.ReadAllBytes(file));
+                    File.Delete(file);
+                }
+            });
+
+            AddStep("finish external edit", () => ((ExternalEditScreen)Game.ScreenStack.CurrentScreen).ChildrenOfType<DangerousRoundedButton>().First().TriggerClick());
+
+            AddUntilStep("wait for retry available", () => ((ExternalEditScreen)Game.ScreenStack.CurrentScreen).ChildrenOfType<DangerousRoundedButton>().FirstOrDefault()?.Enabled.Value == true);
+
+            AddAssert("still on external edit screen", () => Game.ScreenStack.CurrentScreen is ExternalEditScreen);
+            AddAssert("beatmap still mounted", () => ((ExternalEditScreen)Game.ScreenStack.CurrentScreen).EditOperation!.IsMounted);
+            AddAssert("mounted files still present", () => Directory.GetFiles(mountedPath), () => Is.Not.Empty);
+
+            AddStep("fix beatmap externally", () =>
+            {
+                foreach ((string file, byte[] content) in removedFiles)
+                    File.WriteAllBytes(file, content);
+            });
+
+            AddStep("finish external edit again", () => ((ExternalEditScreen)Game.ScreenStack.CurrentScreen).ChildrenOfType<DangerousRoundedButton>().First().TriggerClick());
+
+            AddUntilStep("wait for editor", () => Game.ScreenStack.CurrentScreen is Editor editor && editor.ReadyForUse);
+
+            AddAssert("mounted path cleaned up", () => Directory.Exists(mountedPath), () => Is.False);
         }
 
         [Test]

@@ -53,6 +53,7 @@ namespace osu.Game.Screens.Edit
 
         private bool operationFinishStarted;
         private bool operationFinished;
+        private bool operationFinishFailed;
 
         private FillFlowContainer flow = null!;
 
@@ -108,7 +109,7 @@ namespace osu.Game.Screens.Edit
 
             // If the operation completed successfully, ensure that we finish the operation before exiting.
             // The finish() call will subsequently call Exit() when done.
-            if (EditOperation != null && !operationFinishStarted)
+            if (EditOperation != null && !operationFinishStarted && !operationFinishFailed)
             {
                 finish().FireAndForget();
                 return true;
@@ -136,11 +137,23 @@ namespace osu.Game.Screens.Edit
                 this.Exit();
             }
 
+            showMountedControls(EditorStrings.BeatmapMountedExternally, EditorStrings.ExternalEditMountedExplanation, buttonsEnabled: false);
+
+            Scheduler.AddDelayed(() =>
+            {
+                foreach (var b in flow.ChildrenOfType<RoundedButton>())
+                    b.Enabled.Value = true;
+                openDirectory();
+            }, 1000);
+        }
+
+        private void showMountedControls(LocalisableString header, LocalisableString explanation, bool buttonsEnabled)
+        {
             flow.Children = new Drawable[]
             {
                 new OsuSpriteText
                 {
-                    Text = EditorStrings.BeatmapMountedExternally,
+                    Text = header,
                     Font = OsuFont.Default.With(size: 30),
                     Anchor = Anchor.TopCentre,
                     Origin = Anchor.TopCentre,
@@ -152,7 +165,7 @@ namespace osu.Game.Screens.Edit
                     Origin = Anchor.TopCentre,
                     Width = 350,
                     AutoSizeAxes = Axes.Y,
-                    Text = EditorStrings.ExternalEditMountedExplanation,
+                    Text = explanation,
                 },
                 new PurpleRoundedButton
                 {
@@ -161,7 +174,7 @@ namespace osu.Game.Screens.Edit
                     Anchor = Anchor.TopCentre,
                     Origin = Anchor.TopCentre,
                     Action = openDirectory,
-                    Enabled = { Value = false }
+                    Enabled = { Value = buttonsEnabled }
                 },
                 new DangerousRoundedButton
                 {
@@ -170,16 +183,9 @@ namespace osu.Game.Screens.Edit
                     Anchor = Anchor.TopCentre,
                     Origin = Anchor.TopCentre,
                     Action = () => finish().FireAndForget(),
-                    Enabled = { Value = false }
+                    Enabled = { Value = buttonsEnabled }
                 }
             };
-
-            Scheduler.AddDelayed(() =>
-            {
-                foreach (var b in flow.ChildrenOfType<RoundedButton>())
-                    b.Enabled.Value = true;
-                openDirectory();
-            }, 1000);
         }
 
         private void openDirectory()
@@ -197,6 +203,7 @@ namespace osu.Game.Screens.Edit
                 return;
 
             operationFinishStarted = true;
+            operationFinishFailed = false;
 
             BackButtonVisibility.Value = false;
             string originalDifficulty = editor.Beatmap.Value.Beatmap.BeatmapInfo.DifficultyName;
@@ -212,8 +219,18 @@ namespace osu.Game.Screens.Edit
             catch (Exception ex)
             {
                 Logger.Log($@"Failed to finish external edit operation: {ex}", LoggingTarget.Database);
-                showSpinner(EditorStrings.ImportFailed);
-                await Task.Delay(1000).ConfigureAwait(true);
+            }
+
+            if (beatmap == null && EditOperation!.IsMounted)
+            {
+                Logger.Log($@"Import of externally edited beatmap failed. Files are still mounted at {EditOperation.MountedPath}.", LoggingTarget.Database);
+
+                showMountedControls(EditorStrings.ImportFailed, EditorStrings.ExternalEditImportFailedExplanation, buttonsEnabled: true);
+
+                BackButtonVisibility.Value = true;
+                operationFinishStarted = false;
+                operationFinishFailed = true;
+                return;
             }
 
             // Setting to null will allow exit to succeed.

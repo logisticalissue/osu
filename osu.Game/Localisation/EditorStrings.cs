@@ -277,6 +277,12 @@ namespace osu.Game.Localisation
             @"Any changes made to the exported folder will be imported to the game, including file additions, modifications and deletions.");
 
         /// <summary>
+        /// "The beatmap could not be imported. Your changes have been kept in the mounted folder. Please check it for issues (e.g. muliple files differing in case) and try again."
+        /// </summary>
+        public static LocalisableString ExternalEditImportFailedExplanation => new TranslatableString(getKey(@"external_edit_import_failed_explanation"),
+            @"The beatmap could not be imported. Your changes have been kept in the mounted folder. Please check it for issues (e.g. muliple files differing in case) and try again.");
+
+        /// <summary>
         /// "New combo"
         /// </summary>
         public static LocalisableString NewCombo => new TranslatableString(getKey(@"new_combo"), @"New combo");
