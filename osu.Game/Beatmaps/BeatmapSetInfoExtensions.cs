@@ -30,7 +30,7 @@ namespace osu.Game.Beatmaps
         /// <param name="model">The model to operate on.</param>
         /// <param name="filename">The name of the file to get the storage path of.</param>
         public static RealmNamedFileUsage? GetFile(this IHasRealmFiles model, string filename) =>
-            model.Files.FirstOrDefault(f => string.Equals(f.Filename, filename, StringComparison.OrdinalIgnoreCase));
+            model.Files.SingleOrDefault(f => string.Equals(f.Filename, filename, StringComparison.OrdinalIgnoreCase));
 
         /// <summary>
         /// Get the beatmapset info page URL, or <c>null</c> if unavailable.

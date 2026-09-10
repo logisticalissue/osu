@@ -25,8 +25,6 @@ namespace osu.Game.Database
         private readonly IModelImporter<TModel> importer;
         private readonly TModel original;
 
-        private bool finishInProgress;
-
         public ExternalEditOperation(IModelImporter<TModel> importer, TModel original, string path)
         {
             this.importer = importer;
@@ -43,34 +41,17 @@ namespace osu.Game.Database
         /// <remarks>
         /// This will trigger an asynchronous reimport of the model.
         /// Subsequent calls will be a no-op.
-        ///
-        /// If the reimport fails, the mount is left open so there is a chance to fix
-        /// and retry the operation without losing any external work
         /// </remarks>
-        /// <returns>A task which will eventuate in the newly imported model with changes applied, or <c>null</c> if the reimport failed.</returns>
+        /// <returns>A task which will eventuate in the newly imported model with changes applied.</returns>
         public async Task<Live<TModel>?> Finish()
         {
-            if (!Directory.Exists(MountedPath) || !IsMounted || finishInProgress)
-                return null;
-
-            Live<TModel>? imported;
-
-            finishInProgress = true;
-
-            try
-            {
-                imported = await importer.ImportAsUpdate(new ProgressNotification(), new ImportTask(MountedPath), original)
-                                         .ConfigureAwait(false);
-            }
-            finally
-            {
-                finishInProgress = false;
-            }
-
-            if (imported == null)
+            if (!Directory.Exists(MountedPath) || !IsMounted)
                 return null;
 
             IsMounted = false;
+
+            Live<TModel>? imported = await importer.ImportAsUpdate(new ProgressNotification(), new ImportTask(MountedPath), original)
+                                                   .ConfigureAwait(false);
 
             try
             {
