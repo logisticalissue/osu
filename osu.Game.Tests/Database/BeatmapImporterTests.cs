@@ -1026,18 +1026,28 @@ namespace osu.Game.Tests.Database
 
                 string? temp = TestResources.GetTestBeatmapForImport();
 
-                using (var stream = File.Open(temp, FileMode.Open, FileAccess.ReadWrite))
-                using (var zip = new System.IO.Compression.ZipArchive(stream, System.IO.Compression.ZipArchiveMode.Update))
+                string extractedFolder = $"{temp}_extracted";
+                Directory.CreateDirectory(extractedFolder);
+
+                try
                 {
-                    var background = zip.Entries.First(e => e.Name.EndsWith(@".jpg", StringComparison.OrdinalIgnoreCase));
+                    using (var zip = ZipArchive.OpenArchive(temp))
+                        zip.WriteToDirectory(extractedFolder);
 
-                    byte[] content;
+                    string background = Directory.GetFiles(extractedFolder, "*.jpg").First();
 
-                    using (var backgroundStream = background.Open())
-                        content = backgroundStream.ReadAllBytesToArray();
+                    using (var zip = ZipArchive.CreateArchive())
+                    {
+                        zip.AddAllFromDirectory(extractedFolder);
 
-                    using (var duplicateStream = zip.CreateEntry(background.Name.ToUpperInvariant()).Open())
-                        duplicateStream.Write(content);
+                        zip.AddEntry(Path.GetFileName(background).ToUpperInvariant(), background);
+
+                        zip.SaveTo(temp, new ZipWriterOptions(CompressionType.Deflate));
+                    }
+                }
+                finally
+                {
+                    Directory.Delete(extractedFolder, true);
                 }
 
                 Exception? exception = null;
