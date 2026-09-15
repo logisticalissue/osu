@@ -74,6 +74,8 @@ namespace osu.Game.Storyboards.Commands
 
         internal Func<int>? DeclarationIndexSource;
 
+        internal int DeclarationIndex { get; set; }
+
         private readonly IReadOnlyList<IStoryboardCommand>[] lists;
 
         public IEnumerable<IStoryboardCommand> AllCommands => lists.SelectMany(g => g);

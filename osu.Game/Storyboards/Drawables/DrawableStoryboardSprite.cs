@@ -78,7 +78,7 @@ namespace osu.Game.Storyboards.Drawables
 
         public override bool UpdateSubTree()
         {
-            if (evaluatePerFrame && LoadState == LoadState.Loaded)
+            if (evaluatePerFrame && LoadState >= LoadState.Ready)
                 Sprite.ApplyAt(this, Time.Current);
 
             return base.UpdateSubTree();

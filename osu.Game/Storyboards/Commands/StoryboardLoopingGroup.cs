@@ -11,6 +11,8 @@ namespace osu.Game.Storyboards.Commands
     {
         private readonly double loopStartTime;
 
+        internal double LoopStartTime => loopStartTime;
+
         /// <summary>
         /// The total number of times this loop is played back. Always greater than zero.
         /// </summary>
@@ -63,10 +65,10 @@ namespace osu.Game.Storyboards.Commands
                 if (time < StartTime)
                     return null;
 
-                double iteration = Math.Floor((time - StartTime) / period);
+                double iteration = Math.Min(Math.Floor((time - StartTime) / period), loopingGroup.TotalIterations - 1);
 
-                if (iteration >= loopingGroup.TotalIterations)
-                    return null;
+                if (iteration > 0 && time <= EndTime + (iteration - 1) * period)
+                    iteration--;
 
                 double start = StartTime + iteration * period;
                 double end = EndTime + iteration * period;

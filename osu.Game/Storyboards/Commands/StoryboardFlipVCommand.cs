@@ -20,8 +20,7 @@ namespace osu.Game.Storyboards.Commands
 
         public override void ApplyInitialValue<TDrawable>(TDrawable d)
         {
-            if (StartTime == EndTime)
-                d.FlipV = StartValue;
+            d.FlipV = StartTime == EndTime && StartValue;
         }
 
         public override void ApplyAt<TDrawable>(TDrawable d, double time) => d.FlipV = ValueAt(time);

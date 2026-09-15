@@ -25,57 +25,12 @@ namespace osu.Game.Storyboards
 
         public readonly StoryboardCommandGroup Commands = new StoryboardCommandGroup();
 
-        public virtual double StartTime
-        {
-            get
-            {
-                // Users that are crafting storyboards using raw osb scripting or external tools may create alpha events far before the actual display time
-                // of sprites.
-                //
-                // To make sure lifetime optimisations work as efficiently as they can, let's locally find the first time a sprite becomes visible.
-                var alphaCommands = new List<StoryboardCommand<float>>();
-
-                foreach (var command in Commands.Alpha)
-                {
-                    alphaCommands.Add(command);
-                    if (visibleAtStartOrEnd(command))
-                        break;
-                }
-
-                foreach (var loop in LoopingGroups)
-                {
-                    foreach (var command in loop.Alpha)
-                    {
-                        alphaCommands.Add(command);
-                        if (visibleAtStartOrEnd(command))
-                            break;
-                    }
-                }
-
-                if (alphaCommands.Count > 0)
-                {
-                    // Special care is given to cases where there's one or more no-op transforms (ie transforming from alpha 0 to alpha 0).
-                    // - If a 0->0 transform exists, we still need to check it to ensure the absolute first start value is non-visible.
-                    // - After ascertaining this, we then check the first non-noop transform to get the true start lifetime.
-                    var firstAlpha = alphaCommands.MinBy(c => c.StartTime);
-                    var firstRealAlpha = alphaCommands.Where(visibleAtStartOrEnd).MinBy(c => c.StartTime);
-
-                    if (firstAlpha!.StartValue == 0 && firstRealAlpha != null)
-                        return firstRealAlpha.StartTime;
-                }
-
-                return EarliestTransformTime;
-
-                bool visibleAtStartOrEnd(StoryboardCommand<float> command) => command.StartValue > 0 || command.EndValue > 0;
-            }
-        }
+        public virtual double StartTime => StoryboardCommandEvaluator.GetStartTime(this);
 
         public double EarliestTransformTime
         {
             get
             {
-                // If we got to this point, either no alpha commands were present, or the earliest had a non-zero start value.
-                // The sprite's StartTime will be determined by the earliest command, regardless of type.
                 double earliestStartTime = Commands.StartTime;
                 foreach (var l in LoopingGroups)
                     earliestStartTime = Math.Min(earliestStartTime, l.StartTime);
@@ -127,93 +82,37 @@ namespace osu.Game.Storyboards
 
         public StoryboardLoopingGroup AddLoopingGroup(double loopStartTime, int repeatCount)
         {
-            var loop = new StoryboardLoopingGroup(loopStartTime, repeatCount) { DeclarationIndexSource = () => nextDeclarationIndex++ };
+            var loop = new StoryboardLoopingGroup(loopStartTime, repeatCount)
+            {
+                DeclarationIndex = nextDeclarationIndex++,
+                DeclarationIndexSource = () => nextDeclarationIndex++,
+            };
             LoopingGroups.Add(loop);
             return loop;
         }
 
         public StoryboardTriggerGroup AddTriggerGroup(string triggerName, double startTime, double endTime, int groupNumber)
         {
-            var trigger = new StoryboardTriggerGroup(triggerName, startTime, endTime, groupNumber) { DeclarationIndexSource = () => nextDeclarationIndex++ };
+            var trigger = new StoryboardTriggerGroup(triggerName, startTime, endTime, groupNumber)
+            {
+                DeclarationIndex = nextDeclarationIndex++,
+                DeclarationIndexSource = () => nextDeclarationIndex++,
+            };
             TriggerGroups.Add(trigger);
             return trigger;
         }
 
-        private IStoryboardCommand[][]? commandsByProperty;
+        private StoryboardCommandEvaluator? commandEvaluator;
+
+        private StoryboardCommandEvaluator evaluator => commandEvaluator ??= new StoryboardCommandEvaluator(this);
 
         public void ApplyInitialValues<TDrawable>(TDrawable drawable)
             where TDrawable : Drawable, IFlippable, IVectorScalable
-        {
-            commandsByProperty ??= groupCommandsByProperty();
-
-            foreach (var commands in commandsByProperty)
-                commands[0].ApplyInitialValue(drawable);
-        }
+            => evaluator.ApplyInitialValues(drawable);
 
         public void ApplyAt<TDrawable>(TDrawable drawable, double time)
             where TDrawable : Drawable, IFlippable, IVectorScalable
-        {
-            commandsByProperty ??= groupCommandsByProperty();
-
-            foreach (var commands in commandsByProperty)
-            {
-                IStoryboardCommand? governing = null;
-
-                foreach (var command in commands)
-                {
-                    if (!command.IsActiveAt(time))
-                        continue;
-
-                    governing = command;
-                    break;
-                }
-
-                if (governing != null)
-                {
-                    governing.ApplyAt(drawable, time);
-                    continue;
-                }
-
-                // nothing running: hold what the most recently finished
-                // command left behind. if several finished at the same time,
-                // last started decides. commands also started together are
-                // decided by declaration order
-                double mostRecentEnd = double.NegativeInfinity;
-                double governingStart = double.NegativeInfinity;
-
-                foreach (var command in commands)
-                {
-                    double end = command.MostRecentEndTimeAt(time);
-
-                    if (double.IsNegativeInfinity(end) || end < mostRecentEnd)
-                        continue;
-
-                    if (end == mostRecentEnd && command.StartTime <= governingStart)
-                        continue;
-
-                    mostRecentEnd = end;
-                    governingStart = command.StartTime;
-                    governing = command;
-                }
-
-                if (governing == null)
-                {
-                    // nothing has run yet either, so the property is in the state it started in - which is
-                    // the value the first declared command begins from, not the last
-                    commands[0].ApplyInitialValue(drawable);
-                    continue;
-                }
-
-                governing.ApplyAt(drawable, time);
-            }
-        }
-
-        private IStoryboardCommand[][] groupCommandsByProperty()
-            => Commands.AllCommands
-                       .Concat(LoopingGroups.SelectMany(l => l.AllCommands))
-                       .GroupBy(c => c.PropertyName)
-                       .Select(g => g.OrderBy(c => c.DeclarationIndex).ToArray())
-                       .ToArray();
+            => drawable.ApplyStoryboardCommands(evaluator, time);
 
         public void ApplyTransforms<TDrawable>(TDrawable drawable, StoryboardTriggerController triggerController)
             where TDrawable : Drawable, IFlippable, IVectorScalable

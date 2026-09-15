@@ -105,6 +105,36 @@ namespace osu.Game.Tests.Visual.Gameplay
             }
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestFirstUpdateAfterSeeking(bool animation)
+        {
+            (float x, float alpha)? firstUpdate = null;
+
+            AddStep("create storyboard at 500 ms", () =>
+            {
+                manualClock.CurrentTime = 500;
+                var drawable = createStoryboard(s =>
+                {
+                    s.Commands.AddX(Easing.None, 0, 1000, 0, 100);
+                }, animation);
+
+                drawable.OnLoadComplete += d =>
+                {
+                    Drawable child = animation
+                        ? d.ChildrenOfType<DrawableStoryboardAnimation>().Single()
+                        : d.ChildrenOfType<DrawableStoryboardSprite>().Single();
+                    child.OnUpdate += c => firstUpdate ??= (c.X, c.Alpha);
+                };
+
+                Child = drawable;
+            });
+
+            AddUntilStep("first update recorded", () => firstUpdate.HasValue);
+            AddAssert("first update uses current position", () => firstUpdate!.Value.x, () => Is.EqualTo(50));
+            AddAssert("first update uses current alpha", () => firstUpdate!.Value.alpha, () => Is.EqualTo(1));
+        }
+
         [Test]
         public void TestLoopingCommandsPlayback()
         {
@@ -243,11 +273,13 @@ namespace osu.Game.Tests.Visual.Gameplay
             timelineMarker.X = (float)(manualClock.CurrentTime / clock_limit);
         }
 
-        private DrawableStoryboard createStoryboard(Action<StoryboardSprite>? addCommands = null)
+        private DrawableStoryboard createStoryboard(Action<StoryboardSprite>? addCommands = null, bool animation = false)
         {
             var layer = storyboard.GetLayer("Background");
 
-            var sprite = new StoryboardSprite(StoryboardElementSource.Beatmap, lookup_name, Anchor.Centre, new Vector2(320, 240));
+            StoryboardSprite sprite = animation
+                ? new StoryboardAnimation(StoryboardElementSource.Beatmap, lookup_name + ".png", Anchor.Centre, new Vector2(320, 240), 2, 100, AnimationLoopType.LoopForever)
+                : new StoryboardSprite(StoryboardElementSource.Beatmap, lookup_name, Anchor.Centre, new Vector2(320, 240));
             sprite.Commands.AddScale(Easing.None, 0, clock_limit, 0.5f, 0.5f);
             sprite.Commands.AddAlpha(Easing.None, 0, clock_limit, 1, 1);
             addCommands?.Invoke(sprite);

@@ -10,6 +10,7 @@ using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Formats;
 using osu.Game.IO;
 using osu.Game.Storyboards;
+using osu.Game.Storyboards.Drawables;
 using osuTK;
 using osuTK.Graphics;
 
@@ -18,6 +19,72 @@ namespace osu.Game.Tests.Beatmaps.Formats
     [TestFixture]
     public class LegacyStoryboardEncoderTest
     {
+        [Test]
+        public void TestTriggerCommandOrderRoundTrip()
+        {
+            var initial = createComponents();
+            var sprite = new StoryboardSprite(StoryboardElementSource.Beatmap, "test.png", Anchor.Centre, Vector2.Zero);
+            sprite.Commands.AddX(Easing.None, 0, 1000, 10, 10);
+            var trigger = sprite.AddTriggerGroup("Passing", 0, 1000, 0);
+            trigger.AddX(Easing.None, 100, 300, 20, 20);
+            trigger.AddX(Easing.None, 0, 300, 30, 30);
+            sprite.Commands.AddX(Easing.None, 0, 1000, 40, 40);
+            initial.Storyboard.GetLayer("Background").Add(sprite);
+
+            var decoded = (StoryboardSprite)decode(encode(initial)).Storyboard.GetLayer("Background").Elements.Single();
+            var commands = decoded.Commands.X.Concat(decoded.TriggerGroups.Single().X).OrderBy(c => c.DeclarationIndex);
+            Assert.That(commands.Select(c => c.StartValue), Is.EqualTo(new float[] { 10, 20, 30, 40 }));
+        }
+
+        [TestCase(StoryboardElementSource.Beatmap)]
+        [TestCase(StoryboardElementSource.Shared)]
+        public void TestOverlappingCommandOrderRoundTrip(StoryboardElementSource source)
+        {
+            var initial = createComponents();
+            var sprite = new StoryboardSprite(source, "test.png", Anchor.Centre, Vector2.Zero);
+            sprite.Commands.AddX(Easing.None, 100, 300, 100, 100);
+            sprite.Commands.AddX(Easing.None, 0, 300, 200, 200);
+            initial.Storyboard.GetLayer("Background").Add(sprite);
+
+            var decoded = (StoryboardSprite)decode(encode(initial)).Storyboard.GetLayer("Background").Elements.Single();
+            using var drawable = new DrawableStoryboardSprite(decoded);
+            decoded.ApplyAt(drawable, 150);
+            Assert.That(drawable.X, Is.EqualTo(100));
+        }
+
+        [TestCase(false, StoryboardElementSource.Beatmap)]
+        [TestCase(true, StoryboardElementSource.Beatmap)]
+        [TestCase(false, StoryboardElementSource.Shared)]
+        [TestCase(true, StoryboardElementSource.Shared)]
+        public void TestLoopAndCommandOrderRoundTrip(bool loopFirst, StoryboardElementSource source)
+        {
+            var initial = createComponents();
+            var sprite = new StoryboardSprite(source, "test.png", Anchor.Centre, Vector2.Zero);
+            if (!loopFirst)
+                sprite.Commands.AddY(Easing.None, 0, 1000, 300, 300);
+
+            var loop = sprite.AddLoopingGroup(100, 1);
+            loop.AddX(Easing.None, 50, 150, 100, 100);
+            loop.AddX(Easing.None, 0, 150, 200, 200);
+            loop.AddY(Easing.None, 0, 150, 400, 400);
+
+            if (loopFirst)
+                sprite.Commands.AddY(Easing.None, 0, 1000, 300, 300);
+
+            initial.Storyboard.GetLayer("Background").Add(sprite);
+            var decoded = (StoryboardSprite)decode(encode(initial)).Storyboard.GetLayer("Background").Elements.Single();
+            using var drawable = new DrawableStoryboardSprite(decoded);
+
+            foreach (double time in new double[] { 175, 325, 175 })
+            {
+                decoded.ApplyAt(drawable, time);
+                Assert.That(drawable.X, Is.EqualTo(100), $"loop body order at {time}");
+                Assert.That(drawable.Y, Is.EqualTo(loopFirst ? 400 : 300), $"group order at {time}");
+            }
+            Assert.That(decoded.LoopingGroups.Single().StartTime, Is.EqualTo(loop.StartTime));
+            Assert.That(decoded.LoopingGroups.Single().Duration, Is.EqualTo(loop.Duration));
+        }
+
         [Test]
         public void TestBackground()
         {
@@ -275,13 +342,13 @@ namespace osu.Game.Tests.Beatmaps.Formats
             {
                 Assert.That(decodedSprite.LoopingGroups, Has.Count.EqualTo(1));
                 var decodedLoopingGroup = decodedSprite.LoopingGroups.Single();
-                Assert.That(decodedLoopingGroup.StartTime, Is.EqualTo(1000));
+                Assert.That(decodedLoopingGroup.StartTime, Is.EqualTo(loopingGroup.StartTime));
                 Assert.That(decodedLoopingGroup.TotalIterations, Is.EqualTo(45));
 
                 var alphaCommand = decodedLoopingGroup.Alpha.Single();
                 Assert.That(alphaCommand.Easing, Is.EqualTo(Easing.OutQuint));
-                Assert.That(alphaCommand.StartTime, Is.EqualTo(1000));
-                Assert.That(alphaCommand.EndTime, Is.EqualTo(1500));
+                Assert.That(alphaCommand.StartTime, Is.EqualTo(2000));
+                Assert.That(alphaCommand.EndTime, Is.EqualTo(2500));
                 Assert.That(alphaCommand.StartValue, Is.EqualTo(0));
                 Assert.That(alphaCommand.EndValue, Is.EqualTo(1));
             });

@@ -2,12 +2,25 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using osu.Framework.Graphics;
+using osu.Game.Storyboards.Commands;
+using osu.Game.Storyboards.Drawables;
 using osuTK;
 
 namespace osu.Game.Storyboards
 {
     public static class StoryboardExtensions
     {
+        internal static void ApplyStoryboardCommands<TDrawable>(this TDrawable drawable, StoryboardCommandEvaluator evaluator, double time)
+            where TDrawable : Drawable, IFlippable, IVectorScalable
+        {
+            evaluator.ApplyAlphaAt(drawable, time);
+
+            if (evaluator.HasAlphaCommands && !drawable.AlwaysPresent && drawable.Alpha <= 0.0001f)
+                return;
+
+            evaluator.ApplyRemainingAt(drawable, time);
+        }
+
         /// <summary>
         /// Given an origin and a set of properties, adjust the origin to display the sprite/animation correctly.
         /// </summary>

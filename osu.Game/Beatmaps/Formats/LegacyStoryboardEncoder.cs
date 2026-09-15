@@ -152,49 +152,63 @@ namespace osu.Game.Beatmaps.Formats
 
         private void encodeCommands(TextWriter writer, StoryboardSprite sprite)
         {
-            foreach (var loopingGroup in sprite.LoopingGroups)
+            var entries = sprite.Commands.AllCommands.Select(c => (c.DeclarationIndex, Element: (object)c))
+                                .Concat(sprite.LoopingGroups.Select(g => (g.DeclarationIndex, Element: (object)g)))
+                                .Concat(sprite.TriggerGroups.Select(g => (g.DeclarationIndex, Element: (object)g)));
+
+            foreach (var entry in entries.OrderBy(e => e.DeclarationIndex))
             {
-                writer.WriteLine(string.Format(
-                    CultureInfo.InvariantCulture,
-                    @" L,{0},{1}",
-                    loopingGroup.StartTime, loopingGroup.TotalIterations));
-                foreach (var command in loopingGroup.AllCommands)
-                    // see `StoryboardLoopingCommand` ctor for why `relativeToTime` is passed
-                    encodeCommand(writer, command, 2, relativeToTime: loopingGroup.StartTime);
-            }
-
-            foreach (var command in sprite.Commands.AllCommands)
-                encodeCommand(writer, command, 1);
-
-            foreach (var triggerGroup in sprite.TriggerGroups)
-            {
-                // https://github.com/peppy/osu-stable-reference/blob/c34a74fb61c17c5667486a12548485d1f03baa2e/osu!/GameplayElements/HitObjectManager_LoadSave.cs#L1564-L1572
-                writer.Write(string.Format(
-                    CultureInfo.InvariantCulture,
-                    @" T,{0}",
-                    triggerGroup.TriggerName));
-
-                if (triggerGroup.TriggerEndTime != 0)
+                switch (entry.Element)
                 {
-                    writer.Write(string.Format(
-                        CultureInfo.InvariantCulture,
-                        @",{0},{1}",
-                        triggerGroup.TriggerStartTime, triggerGroup.TriggerEndTime));
+                    case IStoryboardCommand command:
+                        encodeCommand(writer, command, 1);
+                        break;
+
+                    case StoryboardLoopingGroup loop:
+                        encodeLoop(writer, loop);
+                        break;
+
+                    case StoryboardTriggerGroup trigger:
+                        encodeTrigger(writer, trigger);
+                        break;
                 }
-
-                if (triggerGroup.GroupNumber != 0)
-                {
-                    writer.Write(string.Format(CultureInfo.InvariantCulture, @",{0}", -triggerGroup.GroupNumber));
-                }
-
-                writer.WriteLine();
-
-                foreach (var command in triggerGroup.AllCommands)
-                    encodeCommand(writer, command, 2);
             }
         }
 
-        private void encodeCommand(TextWriter writer, IStoryboardCommand command, int depth, double relativeToTime = 0)
+        private void encodeLoop(TextWriter writer, StoryboardLoopingGroup loop)
+        {
+            writer.WriteLine(string.Format(CultureInfo.InvariantCulture, @" L,{0},{1}", loop.LoopStartTime, loop.TotalIterations));
+            foreach (var command in loop.AllCommands.OrderBy(c => c.DeclarationIndex))
+                encodeCommand(writer, command, 2);
+        }
+
+        private void encodeTrigger(TextWriter writer, StoryboardTriggerGroup triggerGroup)
+        {
+            writer.Write(string.Format(
+                CultureInfo.InvariantCulture,
+                @" T,{0}",
+                triggerGroup.TriggerName));
+
+            if (triggerGroup.TriggerEndTime != 0)
+            {
+                writer.Write(string.Format(
+                    CultureInfo.InvariantCulture,
+                    @",{0},{1}",
+                    triggerGroup.TriggerStartTime, triggerGroup.TriggerEndTime));
+            }
+
+            if (triggerGroup.GroupNumber != 0)
+            {
+                writer.Write(string.Format(CultureInfo.InvariantCulture, @",{0}", -triggerGroup.GroupNumber));
+            }
+
+            writer.WriteLine();
+
+            foreach (var command in triggerGroup.AllCommands.OrderBy(c => c.DeclarationIndex))
+                encodeCommand(writer, command, 2);
+        }
+
+        private void encodeCommand(TextWriter writer, IStoryboardCommand command, int depth)
         {
             for (int i = 0; i < depth; ++i)
                 writer.Write(' ');
@@ -305,8 +319,8 @@ namespace osu.Game.Beatmaps.Formats
                 @"{0},{1},{2},{3},{4}",
                 typeAcronym,
                 (int)command.Easing,
-                command.StartTime - relativeToTime,
-                command.StartTime == command.EndTime ? null : command.EndTime - relativeToTime,
+                command.StartTime,
+                command.StartTime == command.EndTime ? null : command.EndTime,
                 details));
         }
 
