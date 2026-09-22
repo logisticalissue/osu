@@ -798,7 +798,26 @@ namespace osu.Game.Database
 
                 realm_instances_created.Value++;
 
-                return Realm.GetInstance(getConfiguration());
+                if (ThreadSafety.IsUpdateThread)
+                    return Realm.GetInstance(getConfiguration());
+
+                // Realm takes SynchronizationContext.Current on instance creation and keeps it around for the lifetime
+                // of that instance, marshalling lots of work onto it. This is fine for UpdateThread. Other threads
+                // not so much and usually have sync context already set to null via Task.Run, but for Nunit with a
+                // SafeSynchronizationContext we end up running on the Nunit thread pool with the operations, potentialy
+                // on different threads, doing god knows what and potentially after the instance is gone and end up
+                // crashing the whole host process by access violation.
+                var previousContext = SynchronizationContext.Current;
+                SynchronizationContext.SetSynchronizationContext(null);
+
+                try
+                {
+                    return Realm.GetInstance(getConfiguration());
+                }
+                finally
+                {
+                    SynchronizationContext.SetSynchronizationContext(previousContext);
+                }
             }
             finally
             {
